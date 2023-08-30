@@ -8,16 +8,16 @@ In this project a multithreaded twitter feed was developed using a simple versio
 
 - Section 3 describes usage
 
-- Section 4 evaluates performance
+- Section 4 evaluates performance and speedups compared to a sequential implementation
 
 # 1) Project description
 
 In this project a server for a twitter feed was implemented using concurrent programming based on primitive parallel constructs and a simplified version of the producer-consumer model. In particular:
-- The feed is implemented as a thread-safe linked list using a coarse-graind strategy and an RWLock implemented in this project using mutexes and condition variables only.
+- The feed is implemented as a thread-safe linked that is accessed by multiple threads/consumers. To ensure thread-safety:
+  - An RWLock was implemented in two versions (i) using mutexes and condition variables only (ii) using atomics
+  - Concurrent access to the linked-list is controlled via two strategies: (i) a coarse-graind strategy using the RWLock and (ii) an optimistic blocking strategy using the RWLock in smaller critical sections
 - The server listen for requests via `os.stdin` to add, remove, check for existence and return posts in the feed, sending responses back via `os.stdout`. All messaging follows JSON format.
 - For the producer-consumer model, a non-blocking queue a la Michal-Scott was implemented that is populated by the producer with client requests and accessed concurrently by multiple threads/consumers executing requests.
-- Two reader-write locks were implemented from scratch using condition variables and atomics
-- A thread-safe queue for the feed was implemented using a simple blocking algorithm and an optimistic blocking strategy
 
 ## Sample run
 
