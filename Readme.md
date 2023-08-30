@@ -17,7 +17,7 @@ In this project a server for a twitter feed was implemented using concurrent pro
   - An RWLock was implemented in two versions (i) using mutexes and condition variables only (ii) using atomics
   - Concurrent access to the linked-list is controlled via two strategies: (i) a coarse-graind strategy using the RWLock and (ii) an optimistic blocking strategy utilizing the RWLock in the smallest critical sections possible.
 - The server listen for requests via `os.stdin` to add, remove, check for existence and return posts in the feed, sending responses back via `os.stdout`. All messaging follows JSON format.
-- For the producer-consumer model, a non-blocking queue a la Michal-Scott was implemented that is populated by the producer with client requests and accessed concurrently by multiple threads/consumers executing requests.
+- For the producer-consumer model, a non-blocking queue a la Michal-Scott was implemented. It is populated with client requests by the `producer` and accessed concurrently by multiple threads/consumers executing the requests.
 
 ## Sample run
 
