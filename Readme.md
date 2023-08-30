@@ -1,14 +1,25 @@
-# 1) Project recap
+# Multithreaded Twiter Feed
+In this project a multithreaded twitter feed was implemented using primitive parllel constructs only. 
 
-## 1.1) General description
+# Outline 
+- Setion 1 gives a summary of the project and sample runs
 
-In this project a server for a twitter feed was implemented using concurrent programming and a simplified version of the producer-consumer model. In particular:
+- Section 2 describes implementation details
+
+- Section 3 describes usage
+
+- Section 4 evaluates performance
+
+# 1) Project description
+
+In this project a server for a twitter feed was implemented using concurrent programming based on primitive parallel constructs and a simplified version of the producer-consumer model. In particular:
 - The feed is implemented as a thread-safe linked list using a coarse-graind strategy and an RWLock implemented in this project using mutexes and condition variables only.
 - The server listen for requests via `os.stdin` to add, remove, check for existence and return posts in the feed, sending responses back via `os.stdout`. All messaging follows JSON format.
 - For the producer-consumer model, a non-blocking queue a la Michal-Scott was implemented that is populated by the producer with client requests and accessed concurrently by multiple threads/consumers executing requests.
+- Two reader-write locks were implemented from scratch using condition variables and atomics
+- A thread-safe queue for the feed was implemented using a simple blocking algorithm and an optimistic blocking strategy
 
-
-## 1.2) Sample run
+## Sample run
 
 After the script `proj2/twiter/twitter.go` is executed (see usage below), a client can provide commands in json format via `std.in` to add, remove and check posts in the feed, as well as retrieve the whole feed content. 
 
@@ -50,7 +61,11 @@ Output: {"success":true,"id":2}
 
 > # (continue receiving requests until "DONE" command is given)
 ```
-## 1.3) Implementation
+
+
+
+
+# 2) Implementation
 Below a brief description of the modules that composes this program and their implementation
 
 ### Reader/Writer lock
@@ -138,7 +153,7 @@ This script deploys the server to receive client requests.
 - If number of threads > 1, the server is deployed in concurrent mode. I.e., the consumer-producer model as described in the `Server` section
 - Otherwise, sequential mode. I.e., each task is parsed and executed by the *same* go routine.
 
-# 2) Usage
+# 3) Usage
 For all that follows:
 
 1) clone the repo by executing:
@@ -149,7 +164,7 @@ For all that follows:
 
 2) Everything assumes scripts are executed in the UChicago CS servers, particularly by using `slurm`. The git repo should have already set a `slurm/out` directory for the outputs, but if you dont see one, you should create a folder `slurm/out` inside the `proj2` directory to hold the outputs from `sbatch`'s
 
-## 2.1) Running twitter.go
+## 3.1) Running twitter.go
 
 Navigate to `proj2/twitter` and execute `go run twitter.go <number_of_threads>`
 
@@ -158,7 +173,7 @@ Navigate to `proj2/twitter` and execute `go run twitter.go <number_of_threads>`
 Provide commands via the command line following the `example.txt` file inside `twitter` folder and described in *Section 1*.
 
 
-## 2.2) Running grader scripts
+## 3.2) Running grder/test scripts
 
 1) Modify these lines inside `grader/benchmark-proj2.sh` and `grader-slurm.sh`
     ```bash
@@ -178,7 +193,7 @@ Provide commands via the command line following the `example.txt` file inside `t
 
 Obs: I am assuming you are located in the `proj2` directory when running `sbatch` but you dont need to. As long as the `chdir` set as specified above, can do `sbatch` from anywhere.
 
-## 2.3) Running the benchmarks and plotting results
+## 3.3) Running the benchmarks and plotting results
 
 The speedups and plots can be replicated by the following steps:
 
@@ -224,8 +239,8 @@ That is:
 Why: to facilitate things when running on slurm, this script uses relative paths and will not work correctly if not ran from the root directory of the project.
 
 
-# 3) Analysis
-## 3.1) Speedups - coarse-grained feed
+# 4) Analysis
+## 4.1) Speedups - coarse-grained feed
 Below plot show the average speedups for all sizes of test cases obtained from running the `benchmark.sh` script in the Linux CS Cluster and using the naive coarse-grained feed as required in the project.
 
 Obs: individual plots for each test size can be find in folder `benchmark`.
@@ -240,10 +255,10 @@ Comments:
 
 
 **Speedups - coarse-grained feed**
-![Alt Text](./benchmark/speedup-all.png)
+![Alt Text](./source/benchmark/speedup-all.png)
 
 
-## 3.2 Explanation of trends
+## 4.2 Explanation of trends
 
 - In this program, there are two overheads associated to the use of parallel strategies: the overhead of accessing the `feed` data structure concurrently and the overhead of communication between producers and consumers, including the usage of the lock free queue.
   - Overheads: deploying producer/workers and synchronizing them; retry operations in the non-blocking queue; synchronizing readers/writer in the RWLock; etc
@@ -259,14 +274,14 @@ Comments:
   - for larger cases, we see more gains but a fast flattening of the curve.
 
 
-## 3.3 Changing the feed implementation
+## 4.3 Changing the feed implementation
 
 To see the effects of the naive coarse-grained implementation, `feed2.go` provides another implementation for the linked-list using an "optimistic" locking strategy. Threads acquire reader locks to traverse the feed and only acquire writer locks when effectively need to modify it, instead of acquiring at the beginning of write opeations. If in the window of time swapping locks the relevant feed portions change, the thread retries the operation from the beginning.
 
 Below plot shows the speedups obtained after changing the locking strategy. We see the speedups are much more noticeable for the larger test cases when compared to the naive coarse-grained feed, especially for the `xlarge` case.
 
 **Speedups - optimistic locking feed**
-![Alt Text](./benchmark/speedup-all_opt.png)
+![Alt Text](./source/benchmark/speedup-all_opt.png)
 
 
 
@@ -298,7 +313,7 @@ Answered in 3.3
 
 - In `rwlock_faster.go` I provided an alternative implementation where a writer unblocks readers that came while it was writing (similar to the `Go` native implementation). This leads to a small gain in performance. The table below shows the time taken for `benchmark-proj2.sh`
 
-![Alt Text](./benchmark/RWLock_comparison.png)
+![Alt Text](./source/benchmark/RWLock_comparison.png)
 
 
 Obs: to switch between the two locks, uncomment the first/second line of `func NewFeed()` in `feed.go`.
@@ -340,7 +355,7 @@ Comments:
   - These results could be different if the I/O was expensive and one thread could do work while another thread reads/write to I/O.
 
 
-![Alt Text](./benchmark/hardware_comparison_2.png)
+![Alt Text](./source/benchmark/hardware_comparison_2.png)
 
 
 
@@ -350,4 +365,4 @@ Comments:
 
 Table below shows the results varying `#SBATCH --cpus-per-task` and `#SBATCH --mem-per-cpu`. No change.
 
-![Alt Text](./benchmark/hardware_comparison.png)
+![Alt Text](./source/benchmark/hardware_comparison.png)
