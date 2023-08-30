@@ -1,5 +1,5 @@
 # Multithreaded Twiter Feed
-In this project a multithreaded twitter feed was implemented using primitive parllel constructs only. 
+In this project a multithreaded twitter feed was developed using a simple version of the consumer-producer model and thread-safe data structures implemented from scratch from primitive parallel constructs. 
 
 # Outline 
 - Setion 1 gives a summary of the project and sample runs
