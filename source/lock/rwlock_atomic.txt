@@ -1,0 +1,128 @@
+// Package lock provides an implementation of a read-write lock
+// that uses condition variables and mutexes.
+package lock
+
+
+// something is happening that rw.pendingReaders is going negative when there are many writers
+
+
+
+import (
+	"sync/atomic"
+	"sync"
+	"fmt"
+)
+
+// const maxReaders = 32;
+const infty  = 1 << 31 - 1;
+
+
+type dummyLocker struct {
+}
+
+func (l *dummyLocker) Lock() {
+}
+func (l *dummyLocker) Unlock() {
+}
+
+type rwAtomicLock struct {
+	r1Mux 			sync.Mutex
+	r2Mux 			sync.Mutex
+	wMux 			sync.Mutex
+	dLock 		    dummyLocker
+
+	r1Cond 			*sync.Cond
+	r2Cond 			*sync.Cond
+	writerCond 		*sync.Cond
+
+	pendingReaders 	atomic.Int32
+	waitForReaders 	atomic.Int32
+	
+}
+
+func (rw *rwAtomicLock) RLock() {
+	// fmt.Printf("Threads %d, pending readers: %d\n", GetGID() ,int(nActiveReaders))
+
+	if p := rw.pendingReaders.Add(1); p > 0 {
+		if p > maxReaders {
+			rw.r1Mux.Lock()
+			// fmt.Printf("Reader %d called sync.Wait()\n", GetGID())
+			rw.r1Cond.Wait()
+			// fmt.Printf("Reader %d woke up\n", GetGID())
+			rw.r1Mux.Unlock()
+		}
+
+	} else {
+		fmt.Printf("Reader %d added to wait writer group\n", GetGID())
+		rw.r2Mux.Lock()
+		rw.r2Cond.Wait()
+		rw.r2Mux.Unlock()
+		if p := rw.pendingReaders.Add(1); p > 0 {
+			if p > maxReaders {
+				rw.r1Mux.Lock()
+				rw.r1Cond.Wait()
+				rw.r1Mux.Unlock()
+			}
+		} else {
+			rw.r2Mux.Lock()
+			rw.r2Cond.Wait()
+			rw.r2Mux.Unlock()
+		}
+	}
+}
+
+func (rw *rwAtomicLock) RUnlock() {
+	// if r < 0, a writer is waiting
+	if rw.pendingReaders.Add(-1) > 0 {
+		rw.r1Cond.Signal()
+	} else {
+		rw.rUnlockSlow()
+	}
+}
+
+func (rw *rwAtomicLock) rUnlockSlow() {
+	if rw.waitForReaders.Add(-1) == 0 {
+		rw.writerCond.Signal()
+	} else {
+		rw.r1Cond.Signal()
+	}
+}
+
+
+func (rw *rwAtomicLock) Lock() {
+	rw.wMux.Lock()
+
+	fmt.Printf("WRITE lock acquired by %d\n", GetGID())
+	waitForReaders := rw.pendingReaders.Add(-infty) + infty
+	fmt.Printf("Writer signalized. ")
+
+	if waitForReaders != 0 && rw.waitForReaders.Add(waitForReaders) != 0 {
+		fmt.Printf("Writer is waiting for %d readers\n", waitForReaders)
+		rw.writerCond.Wait()
+	}
+}
+
+func (rw *rwAtomicLock) Unlock() {
+	
+	wakeReaders := rw.pendingReaders.Swap(0) + infty
+
+	fmt.Printf("Writer is waking %d readers\n", wakeReaders)
+	
+	for i := 0; i < int(wakeReaders); i++ {
+		rw.r1Cond.Signal()
+	}
+
+	// allow other writers to proceed
+	rw.wMux.Unlock()
+}
+
+
+func NewRMWAtomicLock() *rwAtomicLock {
+	rw := &rwAtomicLock{}
+	rw.r1Cond = sync.NewCond(&rw.r1Mux)
+	rw.r2Cond = sync.NewCond(&rw.r2Mux)
+	rw.writerCond = sync.NewCond(&rw.dLock)
+	return rw
+}
+
+

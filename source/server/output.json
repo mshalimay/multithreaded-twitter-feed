@@ -1,0 +1,21 @@
+{
+    "id": 20,
+    "feed": [
+        {
+            "body": "This is a new tweet!",
+            "timestamp": 43242428
+        },
+        {
+            "body": "What a beautiful day!",
+            "timestamp": 43242429
+        },
+        {
+            "body": "Just finished a great book",
+            "timestamp": 43242441
+        },
+        {
+            "body": "Rainy days are the best",
+            "timestamp": 43242442
+        }
+    ]
+}

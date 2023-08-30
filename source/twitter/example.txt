@@ -1,0 +1,8 @@
+{"command": "ADD", "id": 1, "body": "This is a new tweet!", "timestamp": 43242428}
+{"command": "ADD", "id": 2, "body": "What a beautiful day!", "timestamp": 43242429}
+{"command": "ADD", "id": 3, "body": "Just finished a great book", "timestamp": 43242441}
+{"command": "ADD", "id": 4, "body": "Rainy days are the best", "timestamp": 43242442}
+{"command": "REMOVE", "id": 4, "timestamp": 43242443}
+{"command": "CONTAINS", "id": 5, "timestamp": 43242443}
+{"command": "FEED", "id": 6}
+{"command": "DONE", "id": 7}

@@ -1,0 +1,83 @@
+package queue
+
+
+import (
+	"sync"
+	"sync/atomic"
+	"unsafe"
+)
+
+
+type Request struct {
+	Command  	string   	`json:"command"`
+	Id 			int   		`json:"id"`
+	Body 		string 		`json:"body"`
+	TimeStamp 	float64 	`json:"timestamp"`
+}
+
+
+// `pointer` holds a pointer to a `node` struct and a counter to mitigate ABA problem
+type pointer struct {
+	ptr 			unsafe.Pointer
+	count 			uint32
+}
+
+// `node` struct holds a pointer to a Request struct (=task) and a `point` struct pointing to the next node
+type node struct{
+	request		*Request
+	next		*pointer
+}
+
+
+// LockfreeQueue represents a FIFO structure with operations to enqueue
+// and dequeue tasks represented as Request
+
+// head is a 'pointer' struct
+
+type LockFreeQueue struct {
+	head	pointer
+	tail 	pointer
+}
+
+// NewQueue creates and initializes a LockFreeQueue
+func NewLockFreeQueue() *LockFreeQueue {
+
+}
+
+func ptrToNode(unsafeptr unsafe.Pointer) *node{
+	return (*node)(unsafeptr)
+}
+
+
+// Enqueue adds a series of Request to the queue
+func (queue *LockFreeQueue) Enqueue(task *Request) {
+	nod := &node{request:task, next: nil}
+
+	for {
+		// tail is a `pointer` struct representing a pointer to a node
+		tail := queue.tail
+		
+		// ``tail.nodeptr` is unsafe pointer to a `node` struct. Typecast it and get the next `pointer` struct
+		next := (*node)(tail.ptr).next
+
+		if next == nil {
+			if CAS((*node)(tail.ptr).next, next, &pointer{ptr: unsafe.Pointer(nod), count: tail.count+1}){
+				return
+			}
+		} else {
+			CAS(&queue.tail, &tail, &pointer{ptr: next.ptr, count: tail.ptr.count+1})
+			
+		}
+	}
+}
+
+func CAS(dest *pointer, candidate *pointer, new *pointer) bool{
+	return atomic.CompareAndSwapUint32(&dest.count, candidate.count, dest.count) &&
+		atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&dest.ptr)), unsafe.Pointer(candidate.ptr), unsafe.Pointer(new.ptr))
+}
+
+
+// Dequeue removes a Request from the queue
+func (queue *LockFreeQueue) Dequeue() *Request {
+	return nil
+}
